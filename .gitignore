@@ -1,0 +1,16 @@
+*.obj
+*.exe
+*.pdb
+*.ilk
+outputs/bin/*
+!outputs/bin/.gitkeep
+
+# Dataset real (~350 MB, csv+zip) - se descarga con data\download_data.ps1
+data/raw/*.csv
+data/raw/*.zip
+!data/raw/.gitkeep
+
+# Artefactos del pipeline (se regeneran con outputs\bin\market_anomaly_engine.exe)
+outputs/reports/*
+!outputs/reports/.gitkeep
+!outputs/figures/*.svg
