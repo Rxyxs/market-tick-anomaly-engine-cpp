@@ -14,3 +14,7 @@ data/raw/*.zip
 outputs/reports/*
 !outputs/reports/.gitkeep
 !outputs/figures/*.svg
+
+# Internal notes / assistant config (not for publication)
+CLAUDE.md
+.claude/
