@@ -5,6 +5,9 @@
 outputs/bin/*
 !outputs/bin/.gitkeep
 
+# Directorio de build de CMake
+build/
+
 # Dataset real (~350 MB, csv+zip) - se descarga con data\download_data.ps1
 data/raw/*.csv
 data/raw/*.zip

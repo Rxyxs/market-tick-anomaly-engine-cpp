@@ -3,10 +3,13 @@
 // configurado para C++). Cada TEST_CASE es una funcion que usa las macros
 // de asercion de abajo; el runner al final reporta el resultado.
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <thread>
 #include <vector>
 
 #include "../src/bar_aggregator.hpp"
@@ -15,6 +18,10 @@
 #include "../src/detectors/ensemble.hpp"
 #include "../src/detectors/ewma_zscore.hpp"
 #include "../src/detectors/rolling_ratio.hpp"
+#include "../src/streaming/l2_feed_simulator.hpp"
+#include "../src/streaming/metrics_writer.hpp"
+#include "../src/streaming/spsc_ring_buffer.hpp"
+#include "../src/streaming/streaming_consumer.hpp"
 
 static int g_failures = 0;
 static int g_checks = 0;
@@ -158,6 +165,126 @@ void test_ensemble_flags_a_flash_crash_bar() {
     ASSERT_TRUE(crash_signal.price_zscore < 0);  // shock a la baja
 }
 
+void test_ring_buffer_single_threaded_fifo_order() {
+    streaming::SpscRingBuffer<int, 8> ring;  // 7 slots usables
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(ring.try_push(i));
+    }
+    for (int i = 0; i < 5; ++i) {
+        int out = -1;
+        ASSERT_TRUE(ring.try_pop(out));
+        ASSERT_TRUE(out == i);  // FIFO: debe salir en el mismo orden que entro
+    }
+    int out = -1;
+    ASSERT_TRUE(!ring.try_pop(out));  // vacio
+}
+
+void test_ring_buffer_reports_full_correctly() {
+    streaming::SpscRingBuffer<int, 4> ring;  // 3 slots usables
+    ASSERT_TRUE(ring.try_push(1));
+    ASSERT_TRUE(ring.try_push(2));
+    ASSERT_TRUE(ring.try_push(3));
+    ASSERT_TRUE(!ring.try_push(4));  // lleno -- no debe sobreescribir
+
+    int out = -1;
+    ASSERT_TRUE(ring.try_pop(out));
+    ASSERT_TRUE(out == 1);
+    ASSERT_TRUE(ring.try_push(4));  // ahora hay espacio para uno mas
+}
+
+// Prueba de concurrencia real: un hilo productor y un hilo consumidor de
+// verdad (no simulados en el mismo hilo), verificando que cada entero de
+// una secuencia monotona 0..N-1 llegue exactamente una vez y en orden --
+// la propiedad que el par de operaciones release/acquire del ring buffer
+// esta obligado a garantizar bajo el modelo de memoria de C++.
+void test_ring_buffer_concurrent_producer_consumer_preserves_all_items() {
+    constexpr size_t kN = 200'000;
+    streaming::SpscRingBuffer<int, 1024> ring;
+    std::atomic<bool> producer_done{false};
+
+    std::thread producer([&]() {
+        for (size_t i = 0; i < kN; ++i) {
+            while (!ring.try_push(static_cast<int>(i))) {
+                // buffer lleno -- reintenta (spin)
+            }
+        }
+        producer_done.store(true, std::memory_order_release);
+    });
+
+    size_t next_expected = 0;
+    size_t total_received = 0;
+    std::thread consumer([&]() {
+        int value = -1;
+        while (true) {
+            if (ring.try_pop(value)) {
+                if (static_cast<size_t>(value) != next_expected) {
+                    ++g_failures;
+                    std::cerr << "FAIL orden de ring buffer concurrente: esperaba " << next_expected
+                              << ", llego " << value << "\n";
+                }
+                ++next_expected;
+                ++total_received;
+            } else if (producer_done.load(std::memory_order_acquire)) {
+                if (!ring.try_pop(value)) break;
+                if (static_cast<size_t>(value) != next_expected) ++g_failures;
+                ++next_expected;
+                ++total_received;
+            }
+        }
+    });
+
+    producer.join();
+    consumer.join();
+
+    g_checks++;
+    ASSERT_TRUE(total_received == kN);
+}
+
+// Prueba de latencia de extremo a extremo (productor -> ring buffer ->
+// consumidor) en microsegundos, sobre un volumen chico para que la suite
+// de tests siga siendo rapida. No se afirma un umbral estricto de
+// nanosegundos (séria fragil en una maquina de desarrollo compartida, no
+// un servidor dedicado con afinidad de nucleo) -- se verifica que la
+// mediana este genuinamente en microsegundos (no milisegundos), y se
+// imprimen los percentiles reales para inspeccion humana, el mismo
+// espiritu que el resto de la suite (numeros reales, no un mock).
+void test_streaming_pipeline_latency_is_microsecond_scale() {
+    constexpr size_t kN = 100'000;
+    streaming::SpscRingBuffer<streaming::L2TickEvent, 4096> ring;
+    streaming::StreamingConsumer consumer(/*trade_window_ticks=*/200, /*expected_ticks=*/kN);
+    std::atomic<bool> producer_done{false};
+
+    std::thread producer([&]() {
+        streaming::run_feed_simulator(ring, kN, streaming::FeedSimulatorConfig{});
+        producer_done.store(true, std::memory_order_release);
+    });
+
+    std::thread consumer_thread([&]() {
+        streaming::L2TickEvent tick;
+        while (true) {
+            if (ring.try_pop(tick)) {
+                int64_t now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+                                      .count();
+                consumer.on_tick(tick, now_ns);
+            } else if (producer_done.load(std::memory_order_acquire)) {
+                break;
+            }
+        }
+    });
+
+    producer.join();
+    consumer_thread.join();
+
+    ASSERT_TRUE(consumer.ticks_processed() == kN);
+
+    auto latency = streaming::compute_latency_percentiles_us(consumer.latency_samples_ns());
+    std::cout << "  [latencia streaming] p50=" << latency.p50_us << "us p95=" << latency.p95_us
+               << "us p99=" << latency.p99_us << "us max=" << latency.max_us << "us\n";
+
+    ASSERT_TRUE(latency.p50_us < 1000.0);  // la mediana debe ser microsegundos, no milisegundos
+}
+
 int main() {
     test_csv_reader_parses_fields();
     test_bar_aggregator_ohlcv();
@@ -168,6 +295,10 @@ int main() {
     test_cusum_does_not_flag_noise_around_zero();
     test_rolling_ratio_flags_burst();
     test_ensemble_flags_a_flash_crash_bar();
+    test_ring_buffer_single_threaded_fifo_order();
+    test_ring_buffer_reports_full_correctly();
+    test_ring_buffer_concurrent_producer_consumer_preserves_all_items();
+    test_streaming_pipeline_latency_is_microsecond_scale();
 
     std::cout << (g_checks - g_failures) << "/" << g_checks << " aserciones pasaron\n";
     if (g_failures > 0) {

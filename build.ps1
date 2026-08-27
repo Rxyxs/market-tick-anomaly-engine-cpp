@@ -34,13 +34,22 @@ $testSources = @(
     "src\detectors\ewma_zscore.cpp", "src\detectors\ensemble.cpp"
 ) -join " "
 
+$streamingSources = @(
+    "src\streaming_main.cpp", "src\detectors\ewma_zscore.cpp"
+) -join " "
+
+# /std:c++20 (no c++17): el ring buffer lock-free de src/streaming usa
+# std::hardware_destructive_interference_size para el padding de linea de
+# cache, disponible desde C++17 en el estandar pero solo expuesto por MSVC
+# bajo /std:c++20 en esta version del compilador (19.29).
 $buildCmd = "call `"$vcvars`" && cd /d `"$repoRoot`" && " +
-    "cl /nologo /std:c++17 /O2 /EHsc /Fe:`"$outDir\market_anomaly_engine.exe`" $engineSources && " +
-    "cl /nologo /std:c++17 /O2 /EHsc /Fe:`"$outDir\run_tests.exe`" $testSources"
+    "cl /nologo /std:c++20 /O2 /EHsc /Fe:`"$outDir\market_anomaly_engine.exe`" $engineSources && " +
+    "cl /nologo /std:c++20 /O2 /EHsc /Fe:`"$outDir\run_tests.exe`" $testSources && " +
+    "cl /nologo /std:c++20 /O2 /EHsc /Fe:`"$outDir\streaming_demo.exe`" $streamingSources"
 
 cmd /c $buildCmd
 if ($LASTEXITCODE -ne 0) {
     throw "Compilacion fallida (codigo $LASTEXITCODE)"
 }
 
-Write-Host "Compilado OK -> $outDir\market_anomaly_engine.exe, $outDir\run_tests.exe"
+Write-Host "Compilado OK -> $outDir\market_anomaly_engine.exe, $outDir\run_tests.exe, $outDir\streaming_demo.exe"
