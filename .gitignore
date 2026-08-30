@@ -17,3 +17,6 @@ data/raw/*.zip
 outputs/reports/*
 !outputs/reports/.gitkeep
 !outputs/figures/*.svg
+
+CLAUDE.md
+.claude/

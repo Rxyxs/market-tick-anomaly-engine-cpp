@@ -30,6 +30,16 @@ Diseñé este proyecto respondiendo a dos decisiones clave:
 
 **Por qué datos de mercado:** En mis proyectos anteriores era fácil identificar fraude porque el dato venía etiquetado. En un exchange real esto no existe; solo hay precio, cantidad, hora y si la orden fue de compra o venta. Esto me obligó a implementar control estadístico en tiempo real en lugar de un clasificador común, demostrando cómo resolver problemas similares bajo condiciones distintas.
 
+## 2.1 Impacto de Negocio e Indicadores Clave (KPIs)
+
+| Métrica | Resultado | Qué significa |
+|---|---|---|
+| Trades reales procesados | 4.780.043 (3 días, Binance BTC/USDT real) | Crash cripto real de marzo 2020 ("Black Thursday"), no datos sintéticos |
+| Puntaje pico de anomalía, momento exacto | 5,55 a las 2020-03-12 10:47 UTC | Cae exactamente dentro de un colapso real, documentado independientemente, de -13% en 3 minutos -- no elegido a conveniencia |
+| Enriquecimiento de alertas en el día del crash | 7,43% vs. ~3,7% días circundantes (~2,0x) | Un aumento honesto, no dramático -- incluso los días "tranquilos" de cripto tienen ráfagas reales de corta duración |
+| Throughput del pipeline | ~2,7M trades/seg de parseo, 1,89s totales para 4,78M trades | Cero dependencias externas, C++17 nativo |
+| Bug real detectado por un resultado implausible | 4.319/4.320 barras marcadas anómalas inicialmente | Rastreado hasta un bug de calentamiento del EWMA, no aceptado sin cuestionar |
+
 ---
 
 # 3. Marco Teórico

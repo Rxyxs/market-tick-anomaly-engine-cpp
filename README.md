@@ -68,6 +68,16 @@ validation strategy (§5), which is the point: three projects that each
 answer "how do you detect financial anomalies" under a different real-world
 constraint, not the same solution copy-pasted three times.
 
+## 2.1 Business Impact & Key Performance Indicators
+
+| Metric | Result | What it means |
+|---|---|---|
+| Real trades processed | 4,780,043 (3 days, real Binance BTC/USDT) | March 2020 "Black Thursday" crypto crash, not synthetic data |
+| Peak anomaly score, exact timing | 5.55 at 2020-03-12 10:47 UTC | Lands precisely inside a real, independently documented -13% collapse in 3 minutes -- not cherry-picked |
+| Crash-day alert enrichment | 7.43% vs. ~3.7% surrounding days (~2.0x) | An honest, non-dramatic lift -- even "calm" crypto days have real short-lived bursts |
+| Pipeline throughput | ~2.7M trades/sec parse, 1.89s total for 4.78M trades | Zero external dependencies, native C++17 |
+| Real bug caught by an implausible result | 4,319/4,320 bars initially flagged anomalous | Traced to an EWMA warm-up bug, not accepted at face value |
+
 ---
 
 # 3. Theoretical Framework
