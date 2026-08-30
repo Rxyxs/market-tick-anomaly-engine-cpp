@@ -279,12 +279,12 @@ El consumidor en Python (`tools/consume_streaming_metrics.py tail`) efectivament
 
 ---
 
-# 9. Autor
-
-**Pablo Reyes** — [github.com/Rxyxs](https://github.com/Rxyxs)
-
-## Fuente de datos y licencia
+# 9. Fuente de datos y licencia
 
 Datos de transacciones: operaciones públicas de BTC/USDT en Binance (11-13 de marzo de 2020) descargadas del [archivo público de Binance](https://data.binance.vision).
 
 Código: Licencia MIT — ver [LICENSE](LICENSE).
+
+# 10. Autor
+
+**Pablo Reyes** — [github.com/Rxyxs](https://github.com/Rxyxs)

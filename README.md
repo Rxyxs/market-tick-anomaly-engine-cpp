@@ -446,11 +446,7 @@ running both processes concurrently, not by writing a static example.
 
 ---
 
-# 9. Author
-
-**Pablo Reyes** — [github.com/Rxyxs](https://github.com/Rxyxs)
-
-## Data source & license
+# 9. Data source & license
 
 Trade data: real, public historical trades for BTC/USDT on Binance,
 March 11–13, 2020, downloaded from
@@ -460,3 +456,7 @@ project performs no trading, order placement, or account access — it reads
 already-published historical trade prints for offline analysis.
 
 Code: MIT — see [LICENSE](LICENSE).
+
+# 10. Author
+
+**Pablo Reyes** — [github.com/Rxyxs](https://github.com/Rxyxs)
