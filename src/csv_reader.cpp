@@ -24,8 +24,17 @@ const char* next_field(const char* cursor, char* buffer, size_t buffer_size) {
 }  // namespace
 
 size_t read_trades_csv(const std::string& path, std::vector<Trade>& out_trades) {
+    // fopen_s es una extension de Microsoft, no del estandar; fuera de MSVC hay
+    // que usar fopen(). Lo unico que se pierde es el codigo de error detallado
+    // que devuelve fopen_s, y aca no se usaba: la condicion real es si el
+    // puntero quedo nulo. Mismo caso que gmtime_s en trade_types.cpp.
     FILE* f = nullptr;
-    if (fopen_s(&f, path.c_str(), "rb") != 0 || f == nullptr) {
+#ifdef _MSC_VER
+    if (fopen_s(&f, path.c_str(), "rb") != 0) f = nullptr;
+#else
+    f = std::fopen(path.c_str(), "rb");
+#endif
+    if (f == nullptr) {
         throw std::runtime_error("No se pudo abrir el archivo: " + path);
     }
 
