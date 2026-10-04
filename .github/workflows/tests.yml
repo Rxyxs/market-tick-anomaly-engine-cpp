@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  ctest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # El proyecto se desarrolla con MSVC (build.ps1 llama a cl.exe), pero el
+      # codigo es C++20 estandar sin cabeceras de Windows, asi que compila con
+      # GCC. Correr CI en el compilador que NO se usa a diario es deliberado:
+      # atrapa lo que MSVC acepta por extension y el estandar no exige.
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
